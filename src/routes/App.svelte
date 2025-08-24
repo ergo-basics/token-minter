@@ -11,26 +11,39 @@
     import { mint_token } from '$lib/ergo/actions/mint_token';
     import { explorer_uri, network_id } from '$lib/ergo/envs';
 
-    // --- UI State ---
+    // --- Estado de la UI ---
     let showWalletInfo = false;
     let current_height: number | null = null;
     let balanceUpdateInterval: number;
 
-    // --- Minting Form State ---
+    // --- Estado del formulario de acuñación ---
     let tokenName = '';
     let amountStr = '';
     let decimalsStr = '0';
     let description = '';
     
-    // --- Transaction State ---
+    // --- Estado de la transacción ---
     let isLoading = false;
     let transactionId: string | null = null;
     let errorMessage: string | null = null;
 
-    // --- KYA (Know Your Assumptions) Logic ---
+    // --- Lógica del KYA (Know Your Assumptions) ---
     let showKyaModal = false;
     let isKyaButtonEnabled = false;
     let kyaContentDiv: HTMLDivElement;
+    
+    // --- Lógica del Footer ---
+    const footerMessages = [
+        "This Minter is a fully decentralized application. It runs locally in your browser.",
+        "Your keys never leave your wallet. You are in full control of your assets.",
+        "Powered by the Ergo Blockchain, ensuring security and no fees."
+    ];
+    let activeMessageIndex = 0;
+    let scrollingTextElement: HTMLElement;
+
+    function handleAnimationIteration() {
+        activeMessageIndex = (activeMessageIndex + 1) % footerMessages.length;
+    }
 
     function checkKyaScroll(e: Event) {
         const element = e.target as HTMLDivElement;
@@ -91,7 +104,6 @@
         localStorage.setItem('acceptedTokenMinterKYA', 'true'); 
     }
 
-    // --- Wallet Logic ---
     async function connectWallet() {
         if (typeof ergoConnector !== 'undefined') {
             const nautilus = ergoConnector.nautilus;
@@ -119,25 +131,24 @@
             handleOpenKyaModal();
         }
         
-        // Try to connect automatically on page load
         await connectWallet();
         
-        // Set an interval to periodically update information
         balanceUpdateInterval = setInterval(updateWalletInfo, 30000);
+        
+        scrollingTextElement?.addEventListener('animationiteration', handleAnimationIteration);
 
         return () => {
             if (balanceUpdateInterval) clearInterval(balanceUpdateInterval);
+            scrollingTextElement?.removeEventListener('animationiteration', handleAnimationIteration);
         }
     });
 
-    // When the connection status changes, update the information
     connected.subscribe(async (isConnected) => {
         if (isConnected) {
             await updateWalletInfo();
         }
     });
 
-    // Function to update balance and height (assumes already connected)
     async function updateWalletInfo() {
         if (typeof ergo === 'undefined' || !$connected) return;
         try {
@@ -165,12 +176,11 @@
                 throw new Error("Amount must be greater than zero.");
             }
 
-            // Direct call to the imported action
             const txId = await mint_token(tokenName, amount, decimals, description);
             
             if (txId) {
                 transactionId = txId;
-                await updateWalletInfo(); // Update balance after minting
+                await updateWalletInfo(); 
             } else {
                 throw new Error("The transaction did not return an ID.");
             }
@@ -321,7 +331,13 @@
             KYA
         </span>
     </div>
-    <div class="flex-1"></div>
+
+    <div class="footer-center">
+        <div bind:this={scrollingTextElement} class="scrolling-text-wrapper">
+            {footerMessages[activeMessageIndex]}
+        </div>
+    </div>
+
     <div class="footer-right">
         <svg width="14" height="14" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.502 2.999L6 0L11.495 3.03L6.0025 5.96L0.502 2.999V2.999ZM6.5 6.8365V12L11.5 9.319V4.156L6.5 6.8365V6.8365ZM5.5 6.8365L0.5 4.131V9.319L5.5 12V6.8365Z" fill="currentColor"></path></svg>
         {#if current_height}
@@ -347,10 +363,6 @@
 
     .logo-container {
         @apply mr-4 flex items-center;
-    }
-
-    .logo-image {
-        @apply h-10 w-auto;
     }
 
     .user-section {
@@ -388,5 +400,25 @@
     .footer-left,
     .footer-right {
         @apply flex items-center gap-2 flex-shrink-0;
+    }
+
+    .footer-center {
+        @apply flex-1 overflow-hidden;
+        -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    }
+
+    .scrolling-text-wrapper {
+        @apply inline-block whitespace-nowrap;
+        animation: scroll-left 30s linear infinite;
+    }
+
+    @keyframes scroll-left {
+        from {
+            transform: translateX(100vw);
+        }
+        to {
+            transform: translateX(-100%);
+        }
     }
 </style>
