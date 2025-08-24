@@ -6,13 +6,16 @@ import {
     type InputBox
 } from '@fleet-sdk/core';
 
+// Ensure the global 'ergo' variable (from the wallet connector) is available.
+declare var ergo: any;
+
 /**
- * Crea una transacción para acuñar un nuevo token de Ergo.
- * @param tokenName - El nombre del token.
- * @param amount - La cantidad total de tokens a acuñar.
- * @param decimals - El número de decimales que tendrá el token.
- * @param description - Una breve descripción del token.
- * @returns El ID de la transacción enviada o null si falla.
+ * Creates a transaction to mint a new Ergo token with improved debugging logs.
+ * @param tokenName - The name of the token.
+ * @param amount - The total amount of tokens to mint.
+ * @param decimals - The number of decimals the token will have.
+ * @param description - A brief description of the token.
+ * @returns The ID of the submitted transaction or null if it fails.
  */
 export async function mint_token(
     tokenName: string,
@@ -21,7 +24,7 @@ export async function mint_token(
     description: string
 ): Promise<string | null> {
 
-    console.log("Iniciando el proceso de acuñación de token con los siguientes detalles:", {
+    console.log("🚀 Starting the token minting process with the following details:", {
         tokenName,
         amount: amount.toString(),
         decimals,
@@ -29,33 +32,44 @@ export async function mint_token(
     });
 
     try {
-        // --- 1. Preparación de datos y dirección ---
+        // --- 1. Data and address preparation ---
+        console.log("Step 1: Getting wallet data...");
+        
         const changeAddress = await ergo.get_change_address();
         if (!changeAddress) {
-            throw new Error("No se pudo obtener la dirección de cambio del monedero.");
+            throw new Error("Could not get the change address from the wallet.");
         }
+        console.log(`Change address obtained: ${changeAddress}`);
+
+        const creationHeight = await ergo.get_current_height();
+        console.log(`Current blockchain height: ${creationHeight}`);
 
         const inputs: InputBox[] = await ergo.get_utxos();
         if (!inputs || inputs.length === 0) {
-            throw new Error("No se encontraron UTXOs en el monedero para la transacción.");
+            throw new Error("No UTXOs found in the wallet for the transaction.");
         }
+        // NEW LOG: Shows how many input boxes were found and their total value.
+        const totalInputValue = inputs.reduce((sum, box) => sum + BigInt(box.value), 0n);
+        console.log(`Found ${inputs.length} UTXOs with a total value of ${totalInputValue} nanoERGs.`);
+        console.log("Selected UTXOs (inputs):", inputs);
 
-        const creationHeight = await ergo.get_current_height();
+        // --- 2. Building the output box for minting ---
+        console.log("Step 2: Building the output box for the new token...");
 
-        // --- 2. Construcción de la caja de salida para la acuñación ---
-        // La primera caja de entrada (inputs[0]) se convierte en el emisor del token.
-        // Su ID se usará para generar el ID del nuevo token.
         const tokenOutput = new OutputBuilder(
-            SAFE_MIN_BOX_VALUE,
+            SAFE_MIN_BOX_VALUE, // The box containing the new token must have at least this value in ERG.
             changeAddress
         ).mintToken({
             name: tokenName,
-            amount: amount,
+            amount: amount,      // The total amount to mint
             decimals: decimals,
             description: description
         });
+        
+        console.log("Minting output box successfully built.");
 
-        // --- 3. Construcción y envío de la transacción ---
+        // --- 3. Building and sending the transaction ---
+        console.log("Step 3: Building the unsigned transaction...");
         const unsignedTransaction = new TransactionBuilder(creationHeight)
             .from(inputs)
             .to(tokenOutput)
@@ -63,20 +77,31 @@ export async function mint_token(
             .payFee(RECOMMENDED_MIN_FEE_VALUE)
             .build();
         
-        console.log("Transacción sin firmar creada:", unsignedTransaction.toEIP12Object());
+        // NEW LOG: Shows the Fleet-SDK transaction object before converting it to EIP-12.
+        console.log("Unsigned transaction object (Fleet SDK):", unsignedTransaction);
+        
+        const txToSign = unsignedTransaction.toEIP12Object();
+        console.log("Unsigned transaction (EIP-12 format) ready to be signed:", txToSign);
 
-        const signedTransaction = await ergo.sign_tx(unsignedTransaction.toEIP12Object());
-        console.log("Transacción firmada con éxito.");
+        console.log("Step 4: Requesting signature from the wallet...");
+        const signedTransaction = await ergo.sign_tx(txToSign);
+        console.log("Transaction successfully signed:", signedTransaction);
 
+        console.log("Step 5: Submitting transaction to the network...");
         const transactionId = await ergo.submit_tx(signedTransaction);
-        console.log(`Transacción de acuñación enviada con éxito. ID: ${transactionId}`);
+        console.log(`✅ Minting transaction successfully submitted! ID: ${transactionId}`);
         
         return transactionId;
 
     } catch (error) {
-        console.error("Error durante el proceso de acuñación del token:", error);
-        // Dependiendo de cómo quieras manejar los errores, podrías lanzar el error
-        // o devolver null para indicar que la operación falló.
+        // NEW LOG: Shows the error in more detail.
+        console.error("❌ Error during the token minting process.");
+        if (error instanceof Error) {
+            console.error(`Message: ${error.message}`);
+            console.error(`Stack: ${error.stack}`);
+        }
+        console.error("Full error object:", error);
+        
         return null;
     }
 }
