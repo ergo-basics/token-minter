@@ -240,11 +240,11 @@
       <Dialog.Title>Know Your Assumptions - Ergo Token Minter</Dialog.Title>
     </Dialog.Header>
     <div bind:this={kyaContentDiv} on:scroll={checkKyaScroll} class="max-h-[50vh] overflow-y-auto pr-4 text-sm">
-      <p class="mb-3">This document outlines the key assumptions for this token minting tool. The application operates locally in your browser, does not rely on any centralized server, and interacts directly with the Ergo blockchain through your wallet.</p>
+      <p class="mb-3">This application operates locally in your browser, does not rely on any centralized server, and interacts directly with the Ergo blockchain through your wallet.</p>
 
       <h3 class="font-bold text-md mt-4 mb-2">Fundamental Assumptions</h3>
       <ul class="list-disc ml-6 space-y-2">
-        <li><strong>Wallet Compatibility:</strong> It is assumed that you have a compatible Ergo wallet (like Nautilus) installed, configured, and unlocked. The application is entirely dependent on your wallet to sign and submit transactions.</li>
+        <li><strong>Wallet Compatibility:</strong> It is assumed that you have Nautilus wallet installed, configured, and unlocked. The application is entirely dependent on your wallet to sign and submit transactions.</li>
         <li><strong>Direct Blockchain Interaction:</strong> This tool runs entirely on your machine. All operations are transactions that you must sign and are sent directly to the Ergo network. There are no intermediary servers.</li>
         <li><strong>User Responsibility:</strong> You are responsible for the information you input (token name, amount, etc.). Transactions on the blockchain are irreversible.</li>
         <li><strong>Network Fees:</strong> It is assumed that you have enough ERG in your wallet to cover network transaction fees and the minimum value required to create a new box. Without this, transactions will fail.</li>
