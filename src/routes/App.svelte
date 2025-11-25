@@ -11,10 +11,15 @@
     import { mint_token } from "$lib/ergo/actions/mint_token";
     import { explorer_uri, network_id } from "$lib/ergo/envs";
 
+    // Import advanced wallet components
+    import WalletButton from "$lib/wallet/WalletButton.svelte";
+    import WalletAddressChangeHandler from "$lib/wallet/WalletAddressChangeHandler.svelte";
+    import SettingsModal from "$lib/components/SettingsModal.svelte";
+
     // --- Estado de la UI ---
-    let showWalletInfo = false;
     let current_height: number | null = null;
     let balanceUpdateInterval: number;
+    let showSettingsModal = false;
 
     // --- Estado del formulario de acuñación ---
     let tokenName = "";
@@ -131,29 +136,6 @@
         localStorage.setItem("acceptedTokenMinterKYA", "true");
     }
 
-    async function connectWallet() {
-        if (typeof ergoConnector !== "undefined") {
-            const nautilus = ergoConnector.nautilus;
-            if (nautilus) {
-                if (await nautilus.connect()) {
-                    console.log("Connected!");
-                    address.set(await ergo.get_change_address());
-                    network.set(
-                        network_id == "mainnet"
-                            ? "ergo-mainnet"
-                            : "ergo-testnet",
-                    );
-                    await get_balance();
-                    connected.set(true);
-                } else {
-                    alert("Not connected");
-                }
-            } else {
-                alert("Nautilus wallet is not active");
-            }
-        }
-    }
-
     onMount(async () => {
         if (!browser) return;
 
@@ -163,7 +145,7 @@
             handleOpenKyaModal();
         }
 
-        await connectWallet();
+        // The new wallet system handles auto-reconnection automatically
 
         balanceUpdateInterval = setInterval(updateWalletInfo, 30000);
 
@@ -236,8 +218,6 @@
             isLoading = false;
         }
     }
-
-    $: ergInErgs = $balance ? (Number($balance) / 1_000_000_000).toFixed(4) : 0;
 </script>
 
 <header class="navbar-container">
@@ -247,60 +227,36 @@
         <div class="flex-1"></div>
 
         <div class="user-section">
-            {#if $address}
-                <div class="user-info">
-                    <div class="badge-container">
-                        <Badge variant="secondary">{ergInErgs} ERG</Badge>
-                        <button
-                            on:click={() => (showWalletInfo = true)}
-                            class="address-badge"
-                        >
-                            {$address.slice(0, 6)}...{$address.slice(-4)}
-                        </button>
-                    </div>
-                </div>
-                <button
-                    class="wallet-button"
-                    on:click={() => (showWalletInfo = true)}
-                    aria-label="Wallet info"
+            <WalletButton />
+            <button
+                class="settings-button"
+                on:click={() => (showSettingsModal = true)}
+                aria-label="Settings"
+                title="Configuración"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
                 >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="22"
-                        height="22"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        ><path
-                            d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"
-                        /><path d="M4 6v12c0 1.1.9 2 2-2h14v-4" /><path
-                            d="M18 12a2 2 0 0 0 0 4h4v-4Z"
-                        /></svg
-                    >
-                </button>
-            {:else}
-                <Button on:click={connectWallet}>Connect Wallet</Button>
-            {/if}
+                    <path
+                        d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+                    />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+            </button>
             <div class="theme-toggle">
                 <Theme />
             </div>
         </div>
     </div>
 </header>
-
-{#if $address}
-    <Dialog.Root bind:open={showWalletInfo}>
-        <Dialog.Content>
-            <Dialog.Header
-                ><Dialog.Title>Wallet Info</Dialog.Title></Dialog.Header
-            >
-            <div class="py-4 break-all">Address: {$address}</div>
-        </Dialog.Content>
-    </Dialog.Root>
-{/if}
 
 <Dialog.Root bind:open={showKyaModal}>
     <Dialog.Content class="w-[700px] max-w-[85vw] sm:max-w-[70vw]">
@@ -532,6 +488,12 @@
     </div>
 </footer>
 
+<!-- Wallet Address Change Handler -->
+<WalletAddressChangeHandler />
+
+<!-- Settings Modal -->
+<SettingsModal bind:open={showSettingsModal} />
+
 <style lang="postcss">
     :global(body) {
         background-color: hsl(var(--background));
@@ -555,22 +517,17 @@
         @apply flex items-center gap-4;
     }
 
-    .user-info {
-        @apply hidden sm:flex;
+    .settings-button {
+        @apply flex items-center justify-center;
+        @apply w-9 h-9 rounded-md;
+        @apply border border-border;
+        @apply bg-background hover:bg-accent;
+        @apply text-foreground hover:text-accent-foreground;
+        @apply transition-colors cursor-pointer;
     }
 
-    .badge-container {
-        @apply flex items-center gap-2;
-    }
-
-    .address-badge {
-        @apply inline-flex select-none items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold;
-        @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 border-transparent;
-        @apply transition-colors;
-    }
-
-    .wallet-button {
-        @apply sm:hidden;
+    .settings-button:hover {
+        @apply shadow-sm;
     }
 
     .page-footer {
